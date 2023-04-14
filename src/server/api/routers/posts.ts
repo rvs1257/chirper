@@ -5,7 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { filterUserForClient } from "~/server/helpers/filterUserForClient";
-import { Post } from "@prisma/client";
+import type { Post } from "@prisma/client";
 
 const addUserDataToPosts = async (posts: Post[]) => {
   const users = (await clerkClient.users.getUserList({
@@ -44,7 +44,25 @@ export const postsRouter = createTRPCRouter({
       return addUserDataToPosts(posts);
     }),
 
-  getPostsByUserId: publicProcedure
+  getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const post = await ctx.prisma.post.findUnique({ where: { id: input.id } });
+      if (!post) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Post not found" });
+
+      const author = [await clerkClient.users.getUser(post.authorId)].map(filterUserForClient)[0];
+      if (!author || !author.username) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Author not found" });
+
+      return {
+        post,
+        author: {
+          ...author,
+          username: author.username
+        }
+      }
+    }),
+
+  getByUserId: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
       const author = [await clerkClient.users.getUser(input.userId)].map(filterUserForClient)[0];
