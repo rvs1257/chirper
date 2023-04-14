@@ -1,9 +1,32 @@
-import { InferGetStaticPropsType, type NextPage } from "next";
+import { type NextPage } from "next";
 import Head from "next/head";
 import Image from "next/image";
 import { api } from "~/utils/api";
+import { PageLayout } from "~/components/layout";
+
+const ProfileFeed = (props: {userId: string}) => {
+  const { data, isLoading: postsLoading } = api.posts.getPostsByUserId.useQuery({userId: props.userId})
+
+  if (postsLoading) return <LoadingPage />;
+
+  if (!data || data.length === 0) return <div>User has not posted.</div>;
+
+  return (
+    <div className="flex flex-col">
+      {data.map((fullPost) => (
+        <PostView {...fullPost} key={fullPost.post.id} />
+      ))}
+    </div>
+  );
+};
 
 const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
+  const useUserInfo = useUser();
+
+  if (!useUserInfo.user) {
+    return null;
+  }
+
   const { data } = api.profile.getUserByUsername.useQuery({
     username,
   });
@@ -29,6 +52,7 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
           data.username ?? ""
         }`}</div>
         <div className="w-full border-b border-slate-100"></div>
+        <ProfileFeed userId={data.id} />
       </PageLayout>
     </>
   );
@@ -39,7 +63,9 @@ import { appRouter } from "~/server/api/root";
 import { prisma } from "~/server/db";
 import superjson from "superjson";
 import { type GetStaticProps } from "next";
-import { PageLayout } from "~/components/layout";
+import { useUser } from "@clerk/nextjs";
+import { LoadingPage } from "~/components/loading";
+import { PostView } from "~/components/postView";
 
 export const getStaticProps: GetStaticProps = async (context) => {
   const ssg = createServerSideHelpers({
