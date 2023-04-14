@@ -1,6 +1,10 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 env:
   DATABASE_URL: "https://fake.com"
@@ -13,10 +17,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install Dependencies
+      - name: Use  Node.js LTS
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
+          cache: 'npm'
+
+      - name: Install Dependencies
         run: npm install
 
       - name: Typecheck
